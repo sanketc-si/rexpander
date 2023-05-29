@@ -1,0 +1,4 @@
+
+* || ""  =>     no query
+?        =>     _ 
+if specifies then query 

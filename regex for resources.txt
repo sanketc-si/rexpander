@@ -1,0 +1,116 @@
+arn:partition:service:region:account-id:resource
+
+    PARTITION - {aws, aws-us-gov, as-cn, aws-cn-northwest-1}
+
+    SERVICE - {}
+
+    REGION - {31 regions}
+
+    ACCOUNT-ID - {cloudaccount->acount_details[account]}
+
+    RESOURCEPATH
+
+        RESOURCETYPE - {resourcetype table}
+
+        RESOURCE{ID} - {resource table}
+
+        Amazon S3 - {bucket-name/object-key}
+            arn:aws:s3:::bucket-name for the entire bucket
+            arn:aws:s3:::bucket-name/object-key for a specific object in a bucket
+            arn:aws:s3:::bucket-name/* for all objects in a bucket
+            arn:aws:s3:::bucket_name/developers/${aws:username}/
+
+        Amazon EC2 - {instance/instance-id}
+            arn:aws:ec2:region:account-id:instance/instance-id          
+
+
+        Amazon RDS - {db:db-instance-name / cluster / og / pg ...}
+            arn:aws:rds:region:account-id:db:db-instance-name
+            arn:aws:rds:us-east-2:123456789012:cluster:my-aurora-cluster-1
+            arn:aws:rds:us-east-2:123456789012:es:my-subscription
+            arn:aws:rds:us-east-2:123456789012:og:my-og
+            arn:aws:rds:us-east-2:123456789012:pg:my-param-enable-logs
+            arn:aws:rds:us-east-2:123456789012:cluster-pg:my-cluster-param-timezone
+
+        Amazon DynamoDB - {table/table-name}
+            arn:aws:dynamodb:region:account-id:table/table-name
+
+        Amazon SQS - {queue-name}
+            arn:aws:sqs:region:account-id:queue-name
+
+        Amazon SNS - {topic-name}
+            arn:aws:sns:region:account-id:topic-name
+
+
+https://web.archive.org/web/20190903192015/https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
+
+WILDCARDS -
+    *
+    ?
+    []
+    [ - ]
+    {}
+    ^
+
+
+# Resource string will equal:
+        #     Case 1: resource
+        #     Case 2: resourcetype/resource
+        #     Case 3: resourcetype/resource/qualifier
+        #     Case 4: resourcetype/resource:qualifier
+        #     Case 5: resourcetype:resource
+        #     Case 6: resourcetype:resource:qualifier       
+
+
+------ ARNs -------------
+
+arn:aws:s3:::*
+arn:aws:*:us-west-1:#34:bucket
+arn:aws:s3:us-west-1:#34:bucket
+arn:aws:ec2:us-east-2:*:instance/*
+arn:aws:s3:::confidential-data
+arn:aws:s3:::confidential-data/*
+arn:aws:ec2:*:*:instance/*
+arn:aws:sqs:us-east-2::${aws:PrincipalTag/team}-queue
+arn:aws:dynamodb:*:*:table/table-name
+arn:aws:dynamodb:*:*:table/SampleTable/stream/* 
+arn:aws:rds:region:*:*
+arn:aws:s3:::bucket-name/cognito/application-name/${cognito-identity.amazonaws.com:sub}/*
+arn:aws:s3:::bucket-name/home/${aws:username}
+arn:aws:s3:::*/*
+arn:aws:iam::123456789012:user/johndoe
+arn:aws:iam::*:user/division_abc/subdivision_xyz/Richard
+
+
+--
+arn:aws:s3:::bucket-name/cognito/application-name/${cognito-identity.amazonaws.com:sub}/*
+arn:aws:s3:us-west-1:#34:bucket
+arn:aws:s3:::confidential-data
+arn:aws:s3:::confidential-data/*
+arn:aws:s3:::bucket-name/home/${aws:username}
+arn:aws:s3:::*/*
+
+S3 -Done
+arn:aws:s3:::*
+arn:aws:s3:us-west-1:#34:*/*
+arn:aws:s3::#21:*
+arn:aws:s3:us-west-1:#34:sg-t?st?23
+* => 5360 = [4 * 1(only S3) * 5 * 4 * 67(awsS3 resources)]
+
+--
+arn:aws:lambda:us-east-1:123456789012:function:my-function
+arn:aws:lambda:us-east-1:123456789012:function:my-function:1
+arn:aws:lambda:us-east-1:123456789012:function:my-function:PROD
+arn:aws:lambda:us-east-1:123456789012:event-source-mapping:fa123456-14a1-4fd2-9fec-83de64ad683de6d47
+arn:aws:lambda:us-east-1:123456789012:layer:my-layer
+arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1
+
+Lambda - to test
+arn:aws:lambda:us-east-1:123456789012:function:g?t_bi??
+arn:aws:lambda:us-east-1:123456789014:function:get_user
+arn:aws:lambda:us-west-1:#34:function:*
+arn:aws:lambda:::*
+arn:aws:lambda:us-west-1:#20:event-source-mapping:*
+arn:aws:lambda:us-west-1:#20:layer:*
+* => 6480 (without rds, no of resources do not affect) (4 * 1 * 5 * 4 *14(query for lambda with just function) + 4 * 1 * 5 *4 *67 (query for s3)) 
+--

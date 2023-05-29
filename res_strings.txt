@@ -1,0 +1,2 @@
+arn:aws:dynamodb:us-east-1:123456789012:table/ap?-?s?r
+arn:aws:dynamodb:us-east-1:123456789012:table/books_table/stream/2015-05-11T21:21:33.291
