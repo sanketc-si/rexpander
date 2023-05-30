@@ -2,7 +2,6 @@ package rexpander
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"database/sql"
@@ -106,19 +105,25 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 	var resourceFieldExpanded = []string{}
 
 	for i := range currentGeneratedResources {
-
+		// arn:aws:s3:us-east-1:123
 		arn := strings.SplitN(currentGeneratedResources[i], ":", 5)
 		// arn, err := awsutil.ParseArn(currentGeneratedResources[i])
 		if arn != nil {
+			// service
 			switch arn[2] {
-
+			// arn:aws:s3:us-east-1:123:bucket
 			case "s3":
+				// resource is given
 				if arnType.Resource != "*" && arnType.Resource != "" && !strings.ContainsAny(arnType.Resource, "?[]{}^") {
 					for i := range currentGeneratedResources {
+						// curentGeneratedResourceWithResource
+						// rename
 						currentGeneratedResources[i] += ":" + arnType.Resource
 					}
+					// arn:aws:s3:us-east-1:123:bucket
 					return currentGeneratedResources
 				} else if arnType.Resource == "*" || arnType.Resource == "" {
+					// resource = *
 					ithResourceExpanded := []string{}
 					// s3buckets := []string{"b1", "b2", "b3"}
 					// s3paths := []string{"path1", "path2"}
@@ -389,6 +394,7 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 // 	}
 // }
 
+// Entry Function
 func Expand(resources []string) {
 	db = connectDatabase()
 
@@ -463,7 +469,7 @@ func Expand(resources []string) {
 		}
 		// }
 		// fmt.Println(currentGeneratedResources)
-		sort.Strings((currentGeneratedResources))
+		// sort.Strings((currentGeneratedResources))
 		for _, element := range currentGeneratedResources {
 			ExpandedResourceSet[element] = struct{}{}
 		}
