@@ -63,6 +63,7 @@ func handleStarWildcard(currentGeneratedResources []string, arnField string) []s
 
 	default:
 		// code to execute when none of the values match
+		fmt.Println("Unknown field")
 	}
 
 	return resourcesArray
