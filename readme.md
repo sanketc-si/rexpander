@@ -12,8 +12,8 @@ __Wildcards supported__ : *, ?
 
 
 ### How to execute?
-download sitools at same level as entry and resource_expander
-make necessary changes in const to configure your local database connection at bottom inside the resource_expander/expander.go
+ - Download sitools at same level as entry and resource_expander. 
+ - Make necessary changes in const to configure your local database connection at bottom inside the resource_expander/expander.go
 1. open terminal
 2. move to entry/
 3. go run .
