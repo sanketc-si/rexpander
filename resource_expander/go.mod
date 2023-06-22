@@ -4,7 +4,10 @@ go 1.18
 
 replace github.com/stackidentity/sitools => ../sitools
 
-require github.com/stackidentity/sitools v0.0.0-00010101000000-000000000000
+require (
+	github.com/lib/pq v1.10.9
+	github.com/stackidentity/sitools v0.0.0-00010101000000-000000000000
+)
 
 require (
 	github.com/aws/aws-sdk-go v1.44.260 // indirect
@@ -12,7 +15,6 @@ require (
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect

@@ -111,6 +111,30 @@ arn:aws:lambda:us-east-1:123456789014:function:get_user
 arn:aws:lambda:us-west-1:#34:function:*
 arn:aws:lambda:::*
 arn:aws:lambda:us-west-1:#20:event-source-mapping:*
+arn:aws:lambda:us-west-1:#20:layer:given
+arn:aws:lambda:us-east-1:123456789014:function:get_user
 arn:aws:lambda:us-west-1:#20:layer:*
 * => 6480 (without rds, no of resources do not affect) (4 * 1 * 5 * 4 *14(query for lambda with just function) + 4 * 1 * 5 *4 *67 (query for s3)) 
 --
+
+Redshift 
+arn:aws:redshift:us-east-1:123456789012:cluster:my-cluster
+arn:aws:redshift:us-east-1:123456789012:dbname:my-cluster/my-database
+arn:aws:redshift:us-east-1:123456789012:dbuser:my-cluster/my-database-user
+arn:aws:redshift:us-east-1:123456789012:dbgroup:my-cluster/my-database-group
+arn:aws:redshift:us-east-1:123456789012:parametergroup:my-parameter-group
+arn:aws:redshift:us-east-1:123456789012:securitygroup:my-public-group
+arn:aws:redshift:us-east-1:123456789012:snapshot:my-cluster/my-snapshot20130807
+arn:aws:redshift:us-east-1:123456789012:subnetgroup:my-subnet-10          
+
+Dynamo - to test
+arn:aws:redshift:us-east-1:123456789012:cluster:redshift-cluster??
+arn:aws:redshift:us-east-1:123456789012:dbname:*
+arn:aws:redshift:us-east-1:123456789012:cluster:reds*
+arn:aws:redshift:us-east-1:123456789012:cluster:my-cluster
+
+
+redshift
+
+----------
+sbom

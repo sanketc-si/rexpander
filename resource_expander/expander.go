@@ -32,7 +32,7 @@ func handleStarWildcard(currentGeneratedResources []string, arnField string) []s
 		}
 	case "Service":
 		// fetch every sservice from db
-		allServices := []string{"lambda", "s3", "dynamodb"}
+		allServices := []string{"lambda", "s3", "dynamodb", "cloudtrail"}
 		for _, service := range allServices {
 			for _, currentResourceString := range currentGeneratedResources {
 				currentResourceString = currentResourceString + ":" + service
@@ -68,8 +68,13 @@ func handleStarWildcard(currentGeneratedResources []string, arnField string) []s
 
 	return resourcesArray
 }
+func replaceWildcards(clause string) string {
+	clause = strings.Replace(clause, "?", "_", -1)
+	clause = strings.Replace(clause, "*", "%", -1)
+	return clause
+}
 
-func getLambdaNames(lambdaNames map[string][]string, query string, res string) map[string][]string {
+func getResourceTypes(resourceTypes map[string][]string, query string, res string) map[string][]string {
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -89,7 +94,7 @@ func getLambdaNames(lambdaNames map[string][]string, query string, res string) m
 		}
 		// Process the retrieved data
 		// fmt.Println(column1Type)
-		lambdaNames[res] = append(lambdaNames[res], column1Type)
+		resourceTypes[res] = append(resourceTypes[res], column1Type)
 	}
 	if err := rows.Err(); err != nil {
 		// handle error
@@ -98,8 +103,43 @@ func getLambdaNames(lambdaNames map[string][]string, query string, res string) m
 
 	}
 	defer rows.Close()
-	return lambdaNames
+	return resourceTypes
 }
+func fetchFromDb(resourcePathArray []string, query string) []string {
+
+	if len(resourcePathArray) == 0 {
+
+		rows, err := db.Query(query)
+		if err != nil {
+
+			panic(err)
+
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var column1Type string
+			err := rows.Scan(&column1Type)
+			if err != nil {
+
+				panic(err)
+
+			}
+
+			resourcePathArray = append(resourcePathArray, column1Type)
+		}
+		if err := rows.Err(); err != nil {
+
+			panic(err)
+
+		}
+		defer rows.Close()
+	}
+	return resourcePathArray
+}
+
+// func handle handleClause(resource string, ) []string{
+
+// }
 
 func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []string) []string {
 	// if the resource is specified in the arn
@@ -115,7 +155,7 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 			// arn:aws:s3:us-east-1:123:bucket
 			case "s3":
 				// resource is given
-				if arnType.Resource != "*" && arnType.Resource != "" && !strings.ContainsAny(arnType.Resource, "?[]{}^") {
+				if arnType.Resource != "*" && arnType.Resource != "" && !strings.ContainsAny(arnType.Resource, "*?[]{}^") {
 					for i := range currentGeneratedResources {
 						// curentGeneratedResourceWithResource
 						// rename
@@ -137,37 +177,11 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 					// 	}
 
 					// }
-					if len(s3buckets) == 0 {
-						// can add distinct here
-						query := "select distinct id from resource where resource_type = 'awsS3'"
-						rows, err := db.Query(query)
-						if err != nil {
-							// handle error
-							fmt.Println("at 131")
-							panic(err)
 
-						}
-						defer rows.Close()
-						for rows.Next() {
-							var column1Type string
-							err := rows.Scan(&column1Type)
-							if err != nil {
-								// handle error
-								panic(err)
-								// fmt.Println("at 141")
-							}
-							// Process the retrieved data
-							// fmt.Println(column1Type)
-							s3buckets = append(s3buckets, column1Type)
-						}
-						if err := rows.Err(); err != nil {
-							// handle error
-							// fmt.Println("at 150")
-							panic(err)
-
-						}
-						defer rows.Close()
-					}
+					// can add distinct here
+					query := "select distinct id from resource where resource_type = 'awsS3'"
+					// get bucket names
+					s3buckets = fetchFromDb(s3buckets, query)
 
 					for bucket := range s3buckets {
 
@@ -178,7 +192,7 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 					resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
 
 					// fmt.Println(ithResourceExpanded)
-				} else if strings.Contains(arnType.Resource, "?") {
+				} else if strings.ContainsAny(arnType.Resource, "*?") {
 
 					ithResourceExpanded := []string{}
 					for i := range currentGeneratedResources {
@@ -188,39 +202,12 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 							switch arn[2] {
 							case "s3":
 								s3buckets := []string{}
-								clause := strings.Replace(arnType.Resource, "?", "_", -1)
+								clause := replaceWildcards(arnType.Resource)
+
 								query := "select distinct(id) from resource where resource_type = 'awsS3' and name like " + "'" + clause + "'"
+								// get bucket names
+								s3buckets = fetchFromDb(s3buckets, query)
 
-								if len(s3buckets) == 0 {
-
-									rows, err := db.Query(query)
-									if err != nil {
-										// handle error
-										fmt.Println("at 131")
-										panic(err)
-
-									}
-									defer rows.Close()
-									for rows.Next() {
-										var column1Type string
-										err := rows.Scan(&column1Type)
-										if err != nil {
-											// handle error
-											panic(err)
-											// fmt.Println("at 141")
-										}
-										// Process the retrieved data
-										// fmt.Println(column1Type)
-										s3buckets = append(s3buckets, column1Type)
-									}
-									if err := rows.Err(); err != nil {
-										// handle error
-										// fmt.Println("at 150")
-										panic(err)
-
-									}
-									defer rows.Close()
-								}
 								for bucket := range s3buckets {
 
 									ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+s3buckets[bucket])
@@ -237,16 +224,18 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 				{
 					ithResourceExpanded := []string{}
 					var lambdaNames = make(map[string][]string)
-					if arnType.Resource != "*" && arnType.Resource != "" && !strings.ContainsAny(arnType.Resource, "?[]{}^") {
+					if arnType.Resource != "*" && arnType.Resource != "" && !strings.ContainsAny(arnType.Resource, "*?[]{}^") {
 
 						for i := range currentGeneratedResources {
 							currentGeneratedResources[i] += ":" + arnType.Resource
 						}
-						if strings.Contains(arnType.ResourcePath, "?") {
-							resourcePath := strings.Replace(arnType.ResourcePath, "?", "_", -1)
+						if strings.ContainsAny(arnType.ResourcePath, "?*") {
+							resourcePath := replaceWildcards(arnType.ResourcePath)
+							// resourcePath := strings.Replace(arnType.ResourcePath, "?", "_", -1)
+							// resourcePath = strings.Replace(resourcePath, "*", "%", -1)
 							clause := "and name like '" + resourcePath + "'"
 							query := "select distinct name from resource where resource_type = 'awsLambda' and id like " + "'%" + arnType.Resource + "%' " + clause
-							lambdaNames = getLambdaNames(lambdaNames, query, arnType.Resource)
+							lambdaNames = getResourceTypes(lambdaNames, query, arnType.Resource)
 							for i := range currentGeneratedResources {
 								for name := range lambdaNames[arnType.Resource] {
 									ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+lambdaNames[arnType.Resource][name])
@@ -255,11 +244,17 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 							}
 						} else if arnType.ResourcePath == "*" {
 							query := "select distinct name from resource where resource_type = 'awsLambda' and id like " + "'%" + arnType.Resource + "%'"
-							lambdaNames = getLambdaNames(lambdaNames, query, arnType.Resource)
+							lambdaNames = getResourceTypes(lambdaNames, query, arnType.Resource)
 							for i := range currentGeneratedResources {
 								for name := range lambdaNames[arnType.Resource] {
 									ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+lambdaNames[arnType.Resource][name])
 								}
+
+							}
+						} else {
+							for i := range currentGeneratedResources {
+
+								ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+arnType.ResourcePath)
 
 							}
 						}
@@ -272,7 +267,7 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 							if len(lambdaNames[lambdaRes[res]]) == 0 {
 								// can add distinct here
 								query := "select distinct name from resource where resource_type = 'awsLambda' and id like " + "'%" + lambdaRes[res] + "%'"
-								lambdaNames = getLambdaNames(lambdaNames, query, lambdaRes[res])
+								lambdaNames = getResourceTypes(lambdaNames, query, lambdaRes[res])
 							}
 						}
 						for res := range lambdaRes {
@@ -291,7 +286,7 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 			case "dynamodb":
 				// resource will always be table. just handling ResourcePaths
 				{
-					if arnType.ResourcePath != "*" && arnType.ResourcePath != "" && !strings.ContainsAny(arnType.ResourcePath, "?[]{}^") {
+					if arnType.ResourcePath != "*" && arnType.ResourcePath != "" && !strings.ContainsAny(arnType.ResourcePath, "?*[]{}^") {
 
 						for i := range currentGeneratedResources {
 							currentGeneratedResources[i] += ":" + "table/" + arnType.ResourcePath
@@ -300,33 +295,9 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 					} else if arnType.ResourcePath == "*" || arnType.ResourcePath == "" {
 						ithResourceExpanded := []string{}
 						dbTables := []string{}
-						if len(dbTables) == 0 {
-							query := "select distinct name from resource where resource_type = 'awsDynamoDBTable'"
-							rows, err := db.Query(query)
-							if err != nil {
-
-								panic(err)
-
-							}
-							defer rows.Close()
-							for rows.Next() {
-								var column1Type string
-								err := rows.Scan(&column1Type)
-								if err != nil {
-
-									panic(err)
-
-								}
-
-								dbTables = append(dbTables, column1Type)
-							}
-							if err := rows.Err(); err != nil {
-
-								panic(err)
-
-							}
-							defer rows.Close()
-						}
+						query := "select distinct name from resource where resource_type = 'awsDynamoDBTable'"
+						// get table names
+						dbTables = fetchFromDb(dbTables, query)
 						for table := range dbTables {
 
 							ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+"table/"+dbTables[table])
@@ -335,52 +306,142 @@ func handleResourcesField(arnType *awsutil.Arn, currentGeneratedResources []stri
 
 						resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
 
-					} else if strings.Contains(arnType.ResourcePath, "?") {
+					} else if strings.ContainsAny(arnType.ResourcePath, "?*") {
 						ithResourceExpanded := []string{}
 						dbTables := []string{}
 						if len(dbTables) == 0 {
-							clause := strings.Replace(arnType.ResourcePath, "?", "_", -1)
+							clause := replaceWildcards(arnType.ResourcePath)
+							// clause := strings.Replace(arnType.ResourcePath, "?", "_", -1)
+							// clause = strings.Replace(clause, "*", "%", -1)
 							query := "select distinct name from resource where resource_type = 'awsDynamoDBTable' and name like '" + clause + "'"
-							rows, err := db.Query(query)
-							if err != nil {
+							// get table names
+							dbTables = fetchFromDb(dbTables, query)
+							for table := range dbTables {
 
-								panic(err)
-
-							}
-							defer rows.Close()
-							for rows.Next() {
-								var column1Type string
-								err := rows.Scan(&column1Type)
-								if err != nil {
-
-									panic(err)
-
-								}
-
-								dbTables = append(dbTables, column1Type)
-							}
-							if err := rows.Err(); err != nil {
-
-								panic(err)
+								ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+"table/"+dbTables[table])
 
 							}
-							defer rows.Close()
+
+							resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
+
 						}
-						for table := range dbTables {
+					}
+				}
+			case "cloudtrail":
+				{
+					if arnType.ResourcePath != "*" && arnType.ResourcePath != "" && !strings.ContainsAny(arnType.ResourcePath, "*?[]{}^") {
 
-							ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+"table/"+dbTables[table])
+						for i := range currentGeneratedResources {
+							currentGeneratedResources[i] += ":" + "trail/" + arnType.ResourcePath
+						}
+						return currentGeneratedResources
+					} else if arnType.ResourcePath == "*" || arnType.ResourcePath == "" {
+						ithResourceExpanded := []string{}
+						trails := []string{}
+						if len(trails) == 0 {
+							query := "select distinct name from resource where resource_type = 'awsCloudtrail'"
+							// get names
+							trails = fetchFromDb(trails, query)
+						}
+						for trail := range trails {
+
+							ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+"trail/"+trails[trail])
+
+						}
+
+						resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
+					} else if strings.ContainsAny(arnType.ResourcePath, "?*") {
+						ithResourceExpanded := []string{}
+						trails := []string{}
+
+						clause := replaceWildcards(arnType.ResourcePath)
+						query := "select distinct name from resource where resource_type = 'awsCloudtrail' and name like '" + clause + "'"
+						// get names
+						trails = fetchFromDb(trails, query)
+
+						for trail := range trails {
+
+							ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+"trail/"+trails[trail])
 
 						}
 
 						resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
 					}
 				}
+			case "redshift":
+				{
+					// currently uses {awsRedshiftCluster} as a filter in db to query out resources of cluster only,
+					//  but code supports for any of the types of redshift instances like cluster, dbuster, dgroup etc,
+					// just replace by appropriate filter
+					ithResourceExpanded := []string{}
+					var redshiftResourceTypes = make(map[string][]string)
+					if arnType.Resource != "*" && arnType.Resource != "" && !strings.ContainsAny(arnType.Resource, "*?[]{}^") {
+
+						for i := range currentGeneratedResources {
+							currentGeneratedResources[i] += ":" + arnType.Resource
+						}
+						if strings.ContainsAny(arnType.ResourcePath, "?*") {
+							resourcePath := replaceWildcards(arnType.ResourcePath)
+							// resourcePath := strings.Replace(arnType.ResourcePath, "?", "_", -1)
+							// resourcePath = strings.Replace(resourcePath, "*", "%", -1)
+							clause := "and name like '" + resourcePath + "'"
+							query := "select distinct name from resource where resource_type = 'awsRedshiftCluster' and id like " + "'%" + arnType.Resource + "%' " + clause
+							redshiftResourceTypes = getResourceTypes(redshiftResourceTypes, query, arnType.Resource)
+							for i := range currentGeneratedResources {
+								for name := range redshiftResourceTypes[arnType.Resource] {
+									ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+redshiftResourceTypes[arnType.Resource][name])
+								}
+
+							}
+						} else if arnType.ResourcePath == "*" || arnType.ResourcePath == "" {
+							query := "select distinct name from resource where resource_type = 'awsRedshiftCluster' and id like " + "'%" + arnType.Resource + "%'"
+							redshiftResourceTypes = getResourceTypes(redshiftResourceTypes, query, arnType.Resource)
+							for i := range currentGeneratedResources {
+								for name := range redshiftResourceTypes[arnType.Resource] {
+									ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+redshiftResourceTypes[arnType.Resource][name])
+								}
+
+							}
+						} else {
+							for i := range currentGeneratedResources {
+
+								ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+arnType.ResourcePath)
+
+							}
+
+						}
+						resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
+						return resourceFieldExpanded
+					} else if arnType.Resource == "*" || arnType.Resource == "" {
+
+						var redShiftRes = []string{"cluster", "dbname", "dbuser", "dbgroup", "parametergroup", "securitygroup", "snapshot", "subnetgroup"}
+						for res := range redShiftRes {
+							if len(redshiftResourceTypes[redShiftRes[res]]) == 0 {
+								// can add distinct here
+								query := "select distinct name from resource where resource_type = 'awsRedshiftCluster' and id like " + "'%" + redShiftRes[res] + "%'"
+								redshiftResourceTypes = getResourceTypes(redshiftResourceTypes, query, redShiftRes[res])
+							}
+						}
+						for res := range redShiftRes {
+
+							for name := range redshiftResourceTypes[redShiftRes[res]] {
+
+								ithResourceExpanded = append(ithResourceExpanded, currentGeneratedResources[i]+":"+redShiftRes[res]+":"+redshiftResourceTypes[redShiftRes[res]][name])
+
+							}
+						}
+
+						resourceFieldExpanded = append(resourceFieldExpanded, ithResourceExpanded...)
+					}
+
+				}
 			default:
 
 			}
-
 		}
+
 	}
+
 	return resourceFieldExpanded
 }
 
